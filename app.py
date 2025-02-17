@@ -3,49 +3,57 @@ import tensorflow as tf
 import numpy as np
 import pickle
 
-# Load model and mappings
+# Load assets
 @st.cache_resource
-def load_components():
-    model = tf.keras.models.load_model('urdu_poetry_lstm.h5')
-    with open('mappings.pkl', 'rb') as f:
-        char_to_idx, idx_to_char = pickle.load(f)
-    return model, char_to_idx, idx_to_char
+def load_model():
+    return tf.keras.models.load_model('urdu_poetry_lstm.h5')
 
-model, char_to_idx, idx_to_char = load_components()
+model = load_model()
+char_to_idx, idx_to_char = pickle.load(open('mappings.pkl', 'rb'))
 
-# Generation function
-def generate_poem(seed, num_chars=200, temperature=0.8):
-    # ... (same as Colab version above) ...
+# Text generation functions
+def generate_poem(seed, model, max_length=100, num_chars=200, temperature=1.0):
+    generated = seed
+    for _ in range(num_chars):
+        x_pred = np.zeros((1, max_length, len(char_to_idx)))
+        for t, char in enumerate(generated[-max_length:]):
+            if char in char_to_idx:
+                x_pred[0, t, char_to_idx[char]] = 1.0
+
+        preds = model.predict(x_pred, verbose=0)[0]
+        next_index = sample(preds, temperature)
+        next_char = idx_to_char[next_index]
+
+        generated += next_char
+        
+        if len(generated) > max_length + num_chars:
+            break
+            
+    # Format output with line breaks
+    formatted = generated.replace(' \n ', '\n').capitalize()
+    return formatted
+
+def sample(preds, temperature=1.0):
+    preds = np.asarray(preds).astype('float64')
+    preds = np.log(preds) / temperature
+    exp_preds = np.exp(preds)
+    preds = exp_preds / np.sum(exp_preds)
+    probas = np.random.multinomial(1, preds, 1)
+    return np.argmax(probas)
 
 # Streamlit UI
-st.title('Roman-Urdu Poetry Generator 🇵🇰')
+st.title('Roman-Urdu Poetry Generator ✨')
 
-col1, col2 = st.columns(2)
-with col1:
-    seed_text = st.text_input('Start your poem with:', 'mohabbat')
-with col2:
-    temperature = st.slider('Creativity Level', 0.1, 1.5, 0.7)
-
-generate_length = st.selectbox('Poem Length', [100, 200, 300], index=1)
+seed_text = st.text_input('Enter starting words:', 'mohabbat')
+temperature = st.slider('Creativity Level:', 0.1, 2.0, 0.8)
+num_chars = st.slider('Poem Length:', 100, 500, 200)
 
 if st.button('Generate Poetry'):
-    if seed_text.strip() == '':
-        st.warning('Please enter some starting words!')
-    else:
-        with st.spinner('Composing your ghazal...'):
-            poem = generate_poem(
-                seed=seed_text,
-                num_chars=generate_length,
-                temperature=temperature
-            )
-        
-        st.success('Here's your generated poetry:')
-        st.code(poem, language='')
-        
-        # Add download button
-        st.download_button(
-            label='Download Poem',
-            data=poem,
-            file_name='generated_poem.txt',
-            mime='text/plain'
-        )
+    generated = generate_poem(
+        seed_text.lower(),
+        model,
+        num_chars=num_chars,
+        temperature=temperature
+    )
+    st.subheader('Generated Poem:')
+    st.text(generated)
