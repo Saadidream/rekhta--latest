@@ -3,7 +3,15 @@ import tensorflow as tf
 import numpy as np
 import pickle
 
-# Custom CSS styling
+# Set page config FIRST
+st.set_page_config(
+    page_title="Roman-Urdu Poetry Generator",
+    page_icon="✒️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Custom CSS styling (must come AFTER set_page_config)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Poppins:wght@300;500&display=swap');
@@ -46,6 +54,8 @@ st.markdown("""
     footer {text-align: center; padding: 1rem; font-family: 'Poppins'; color: #6c757d;}
     </style>
 """, unsafe_allow_html=True)
+
+# Rest of your code follows...
 
 # Page configuration
 st.set_page_config(
